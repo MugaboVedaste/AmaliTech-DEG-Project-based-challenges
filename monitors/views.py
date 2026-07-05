@@ -5,6 +5,7 @@ from monitors.services.monitor_service import heartbeat, create_monitor
 from monitors.services.timer_service import start_timer
 from monitors.serializers import MonitorCreateSerializer
 from monitors.services.timer_service import TIMERS
+from rest_framework.permissions import IsAuthenticated
 
 @api_view(['POST'])
 def monitor_heartbeat(request, device_id):
@@ -95,4 +96,8 @@ def list_monitors(request):
 
     return Response(data)
 
+@api_view(['POST'])
+def register_monitor(request):
 
+    if not request.user.is_authenticated:
+        return Response({"error": "Unauthorized"}, status=401)
