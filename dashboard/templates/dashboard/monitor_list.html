@@ -1,0 +1,54 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Monitors - Pulse-Check{% endblock %}
+
+{% block content %}
+<h2>All Monitors</h2>
+
+{% if monitors %}
+<div class="monitor-grid">
+  {% for monitor in monitors %}
+  <div class="monitor-card">
+    <div class="monitor-header">
+      <div class="device-id">{{ monitor.device_id }}</div>
+      <span class="status-badge status-{{ monitor.status|lower }}">{{ monitor.status }}</span>
+    </div>
+
+    <div class="monitor-info">
+      <div>
+        <label>Timeout:</label>
+        <value>{{ monitor.timeout }}s</value>
+      </div>
+      <div>
+        <label>Alert Email:</label>
+        <value>{{ monitor.alert_email }}</value>
+      </div>
+      <div>
+        <label>Last Heartbeat:</label>
+        <value>
+          {% if monitor.last_heartbeat %}
+            {{ monitor.last_heartbeat|date:"M d, H:i" }}
+          {% else %}
+            <em>Never</em>
+          {% endif %}
+        </value>
+      </div>
+      <div>
+        <label>Created:</label>
+        <value>{{ monitor.created_at|date:"M d, H:i" }}</value>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a href="{% url 'monitor_detail' monitor.device_id %}" class="btn-primary btn-small" style="display: inline-block; text-align: center; text-decoration: none; padding: 8px;">View Details</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <h3>No monitors yet</h3>
+  <p>Create your first monitor via the API to get started.</p>
+</div>
+{% endif %}
+{% endblock %}

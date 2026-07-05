@@ -10,7 +10,7 @@ def create_monitor(user, data):
         timeout=data["timeout"],
         alert_email=data["alert_email"],
         status="ACTIVE",
-        last_heartbeat=timezone.now()
+        last_heartbeat=None
     )
 
     # start countdown immediately
@@ -19,15 +19,21 @@ def create_monitor(user, data):
     return monitor
 def heartbeat(monitor):
 
-    # ignore if paused or down
-    if monitor.status != "ACTIVE":
-        return monitor
-
+    # device is alive, mark as active and reset timeout
     monitor.last_heartbeat = timezone.now()
     monitor.status = "ACTIVE"
     monitor.save()
 
     # reset timer
+    start_timer(monitor)
+
+    return monitor
+def update_timeout(monitor, new_timeout):
+
+    monitor.timeout = new_timeout
+    monitor.save()
+
+    # restart timer with new timeout
     start_timer(monitor)
 
     return monitor

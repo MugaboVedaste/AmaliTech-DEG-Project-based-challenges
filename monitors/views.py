@@ -1,11 +1,10 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from monitors.models import Monitor
-from monitors.services.monitor_service import heartbeat, create_monitor
+from monitors.services.monitor_service import heartbeat, create_monitor, update_timeout
 from monitors.services.timer_service import start_timer
 from monitors.serializers import MonitorCreateSerializer
 from monitors.services.timer_service import TIMERS
-from rest_framework.permissions import IsAuthenticated
 
 @api_view(['POST'])
 def monitor_heartbeat(request, device_id):
@@ -96,8 +95,24 @@ def list_monitors(request):
 
     return Response(data)
 
-@api_view(['POST'])
-def register_monitor(request):
+@api_view(['PATCH'])
+def update_monitor_timeout(request, device_id):
 
-    if not request.user.is_authenticated:
-        return Response({"error": "Unauthorized"}, status=401)
+    try:
+        monitor = Monitor.objects.get(device_id=device_id)
+    except Monitor.DoesNotExist:
+        return Response({"error": "Not found"}, status=404)
+
+    new_timeout = request.data.get("timeout")
+
+    if not new_timeout:
+        return Response({"error": "timeout is required"}, status=400)
+
+    monitor = update_timeout(monitor, int(new_timeout))
+
+    return Response({
+        "message": "Timeout updated",
+        "device_id": monitor.device_id,
+        "new_timeout": monitor.timeout,
+        "status": monitor.status
+    })

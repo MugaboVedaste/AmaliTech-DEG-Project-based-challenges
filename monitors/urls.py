@@ -4,7 +4,9 @@ from .views import (
     register_monitor,
     pause_monitor,
     resume_monitor,
-    list_monitors
+    list_monitors,
+    update_monitor_timeout
+
 )
 
 urlpatterns = [
@@ -13,4 +15,5 @@ urlpatterns = [
     path("list/", list_monitors),
     path("<str:device_id>/pause/", pause_monitor),
     path("<str:device_id>/resume/", resume_monitor),
+    path("<str:device_id>/timeout/", update_monitor_timeout),
 ]

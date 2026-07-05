@@ -1,0 +1,104 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Dashboard - Pulse-Check{% endblock %}
+
+{% block content %}
+<h2>Dashboard Overview</h2>
+
+<div class="stats">
+  <div class="stat-card">
+    <h3>Total Monitors</h3>
+    <div class="value">{{ total_monitors }}</div>
+  </div>
+  <div class="stat-card">
+    <h3>Active</h3>
+    <div class="value" style="color: #4caf50">{{ active_count }}</div>
+  </div>
+  <div class="stat-card">
+    <h3>Paused</h3>
+    <div class="value" style="color: #ff9800">{{ paused_count }}</div>
+  </div>
+  <div class="stat-card">
+    <h3>Down</h3>
+    <div class="value" style="color: #f44336">{{ down_count }}</div>
+  </div>
+</div>
+
+<h3 style="margin-bottom: 20px">Your Monitors</h3>
+
+{% if monitors %}
+<div class="monitor-grid">
+  {% for monitor in monitors %}
+  <div class="monitor-card">
+    <div class="monitor-header">
+      <div class="device-id">{{ monitor.device_id }}</div>
+      <span class="status-badge status-{{ monitor.status|lower }}">{{ monitor.status }}</span>
+    </div>
+
+    <div class="monitor-info">
+      <div>
+        <label>Timeout:</label>
+        <value>{{ monitor.timeout }}s</value>
+      </div>
+      <div>
+        <label>Alert Email:</label>
+        <value>{{ monitor.alert_email }}</value>
+      </div>
+      <div>
+        <label>Last Heartbeat:</label>
+        <value>
+          {% if monitor.last_heartbeat %}
+            {{ monitor.last_heartbeat|date:"M d, H:i" }}
+          {% else %}
+            <em>Never</em>
+          {% endif %}
+        </value>
+      </div>
+      <div>
+        <label>Created:</label>
+        <value>{{ monitor.created_at|date:"M d, H:i" }}</value>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a href="{% url 'monitor_detail' monitor.device_id %}" class="btn-primary btn-small" style="display: inline-block; text-align: center; text-decoration: none; padding: 8px;">View Details</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <h3>No monitors yet</h3>
+  <p>Create your first monitor via the API to get started.</p>
+</div>
+{% endif %}
+
+<h3 style="margin-top: 40px; margin-bottom: 20px">Recent Alerts</h3>
+
+{% if recent_alerts %}
+<table class="alert-table">
+  <thead>
+    <tr>
+      <th>Device ID</th>
+      <th>Alert Type</th>
+      <th>Message</th>
+      <th>Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for alert in recent_alerts %}
+    <tr>
+      <td><strong>{{ alert.monitor.device_id }}</strong></td>
+      <td><span class="status-badge status-{{ alert.alert_type|lower }}">{{ alert.alert_type }}</span></td>
+      <td>{{ alert.message }}</td>
+      <td>{{ alert.created_at|date:"M d, H:i" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <p>No recent alerts</p>
+</div>
+{% endif %}
+{% endblock %}

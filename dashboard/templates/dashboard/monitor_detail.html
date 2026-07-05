@@ -1,0 +1,85 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ monitor.device_id }} - Pulse-Check{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+  <div>
+    <h2>{{ monitor.device_id }}</h2>
+    <p style="color: #999; margin-top: 5px">Device Monitoring Details</p>
+  </div>
+  <span class="status-badge status-{{ monitor.status|lower }}" style="font-size: 16px; padding: 8px 16px">{{ monitor.status }}</span>
+</div>
+
+<div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+  <h3 style="margin-bottom: 15px">Monitor Information</h3>
+  <div class="monitor-info">
+    <div>
+      <label>Device ID:</label>
+      <value>{{ monitor.device_id }}</value>
+    </div>
+    <div>
+      <label>Status:</label>
+      <value><span class="status-badge status-{{ monitor.status|lower }}">{{ monitor.status }}</span></value>
+    </div>
+    <div>
+      <label>Timeout:</label>
+      <value>{{ monitor.timeout }} seconds</value>
+    </div>
+    <div>
+      <label>Alert Email:</label>
+      <value>{{ monitor.alert_email }}</value>
+    </div>
+    <div>
+      <label>Last Heartbeat:</label>
+      <value>
+        {% if monitor.last_heartbeat %}
+          {{ monitor.last_heartbeat|date:"M d, Y H:i:s" }}
+          <span style="color: #999">({{ time_since_heartbeat|default:"N/A" }} ago)</span>
+        {% else %}
+          <em>Never received</em>
+        {% endif %}
+      </value>
+    </div>
+    <div>
+      <label>Created:</label>
+      <value>{{ monitor.created_at|date:"M d, Y H:i:s" }}</value>
+    </div>
+    <div>
+      <label>Last Updated:</label>
+      <value>{{ monitor.updated_at|date:"M d, Y H:i:s" }}</value>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-bottom: 15px">Alert History</h3>
+
+{% if alerts %}
+<table class="alert-table">
+  <thead>
+    <tr>
+      <th>Alert Type</th>
+      <th>Message</th>
+      <th>Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for alert in alerts %}
+    <tr>
+      <td><span class="status-badge status-{{ alert.alert_type|lower }}">{{ alert.alert_type }}</span></td>
+      <td>{{ alert.message }}</td>
+      <td>{{ alert.created_at|date:"M d, Y H:i:s" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <p>No alerts for this monitor</p>
+</div>
+{% endif %}
+
+<div style="margin-top: 30px">
+  <a href="{% url 'monitor_list' %}" class="btn-secondary" style="display: inline-block; padding: 10px 20px; text-decoration: none">← Back to Monitors</a>
+</div>
+{% endblock %}
