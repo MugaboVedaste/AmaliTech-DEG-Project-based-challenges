@@ -1,8 +1,5 @@
-{% extends "dashboard/base.html" %}
-
-{% block title %}Alert History - Pulse-Check{% endblock %}
-
-{% block content %}
+{% extends "dashboard/base.html" %} {% block title %}Alert History -
+Pulse-Check{% endblock %} {% block content %}
 <h2>Alert History</h2>
 
 {% if alerts %}
@@ -18,8 +15,20 @@
   <tbody>
     {% for alert in alerts %}
     <tr>
-      <td><strong><a href="{% url 'monitor_detail' alert.monitor.device_id %}" style="color: #667eea; text-decoration: none">{{ alert.monitor.device_id }}</a></strong></td>
-      <td><span class="status-badge status-{{ alert.alert_type|lower }}">{{ alert.alert_type }}</span></td>
+      <td>
+        <strong
+          ><a
+            href="{% url 'monitor_detail' alert.monitor.device_id %}"
+            style="color: #667eea; text-decoration: none"
+            >{{ alert.monitor.device_id }}</a
+          ></strong
+        >
+      </td>
+      <td>
+        <span class="status-badge status-{{ alert.alert_type|lower }}"
+          >{{ alert.alert_type }}</span
+        >
+      </td>
       <td>{{ alert.message }}</td>
       <td>{{ alert.created_at|date:"M d, Y H:i:s" }}</td>
     </tr>
@@ -31,5 +40,4 @@
   <h3>No alerts yet</h3>
   <p>All your devices are running smoothly!</p>
 </div>
-{% endif %}
-{% endblock %}
+{% endif %} {% endblock %}

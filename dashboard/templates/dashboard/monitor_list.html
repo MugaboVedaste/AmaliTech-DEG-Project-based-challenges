@@ -5,6 +5,31 @@
 {% block content %}
 <h2>All Monitors</h2>
 
+<div class="panel">
+  <h3>Register New Monitor</h3>
+  <form method="post" action="{% url 'dashboard_register_monitor' %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{% url 'monitor_list' %}">
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="list_device_id">Device ID</label>
+        <input id="list_device_id" name="device_id" type="text" placeholder="device-123" required>
+      </div>
+      <div class="form-field">
+        <label for="list_timeout">Timeout (seconds)</label>
+        <input id="list_timeout" name="timeout" type="number" min="1" step="1" value="60" required>
+      </div>
+      <div class="form-field">
+        <label for="list_alert_email">Alert Email</label>
+        <input id="list_alert_email" name="alert_email" type="email" placeholder="alerts@example.com" required>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Register Monitor</button>
+    </div>
+  </form>
+</div>
+
 {% if monitors %}
 <div class="monitor-grid">
   {% for monitor in monitors %}
@@ -41,6 +66,19 @@
 
     <div class="actions">
       <a href="{% url 'monitor_detail' monitor.device_id %}" class="btn-primary btn-small" style="display: inline-block; text-align: center; text-decoration: none; padding: 8px;">View Details</a>
+      {% if monitor.status == 'ACTIVE' %}
+      <form class="inline-form" method="post" action="{% url 'dashboard_pause_monitor' monitor.device_id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'monitor_list' %}">
+        <button type="submit" class="btn-secondary btn-small">Pause</button>
+      </form>
+      {% else %}
+      <form class="inline-form" method="post" action="{% url 'dashboard_resume_monitor' monitor.device_id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'monitor_list' %}">
+        <button type="submit" class="btn-success btn-small">Resume</button>
+      </form>
+      {% endif %}
     </div>
   </div>
   {% endfor %}
@@ -48,7 +86,7 @@
 {% else %}
 <div class="empty-state">
   <h3>No monitors yet</h3>
-  <p>Create your first monitor via the API to get started.</p>
+  <p>Register your first monitor using the form above.</p>
 </div>
 {% endif %}
 {% endblock %}

@@ -11,8 +11,8 @@
   <span class="status-badge status-{{ monitor.status|lower }}" style="font-size: 16px; padding: 8px 16px">{{ monitor.status }}</span>
 </div>
 
-<div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-  <h3 style="margin-bottom: 15px">Monitor Information</h3>
+<div class="panel">
+  <h3>Monitor Information</h3>
   <div class="monitor-info">
     <div>
       <label>Device ID:</label>
@@ -49,6 +49,39 @@
       <label>Last Updated:</label>
       <value>{{ monitor.updated_at|date:"M d, Y H:i:s" }}</value>
     </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Manage Monitor</h3>
+  <form method="post" action="{% url 'dashboard_update_timeout' monitor.device_id %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{% url 'monitor_detail' monitor.device_id %}">
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="timeout_{{ monitor.id }}">Update Timeout (seconds)</label>
+        <input id="timeout_{{ monitor.id }}" type="number" name="timeout" min="1" step="1" value="{{ monitor.timeout }}" required>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Update Timer</button>
+    </div>
+  </form>
+
+  <div class="form-actions">
+    {% if monitor.status == 'ACTIVE' %}
+    <form class="inline-form" method="post" action="{% url 'dashboard_pause_monitor' monitor.device_id %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'monitor_detail' monitor.device_id %}">
+      <button type="submit" class="btn-secondary">Pause Monitor</button>
+    </form>
+    {% else %}
+    <form class="inline-form" method="post" action="{% url 'dashboard_resume_monitor' monitor.device_id %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'monitor_detail' monitor.device_id %}">
+      <button type="submit" class="btn-primary">Resume Monitor</button>
+    </form>
+    {% endif %}
   </div>
 </div>
 

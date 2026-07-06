@@ -18,6 +18,8 @@ class Alert(models.Model):
 
     is_resolved = models.BooleanField(default=False)
 
+    is_read = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
