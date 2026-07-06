@@ -253,6 +253,23 @@ Supporting additions that make this useful in practice:
 | POST | `/users/register/` | Register a new user |
 | POST | `/users/login/` | Authenticate user and obtain JWT tokens |
 
+**POST `/users/register/`** — body:
+```json
+{
+    "email": "test@example.com",
+    "password": "your_strong_password",
+    "company_name": "CritMon Servers Inc."
+}
+```
+
+**POST `/users/login/`** — body:
+```json
+{
+    "email": "test@example.com",
+    "password": "your_strong_password"
+}
+```
+
 ## Monitors
 | Method | Endpoint | Description |
 |---|---|---|
@@ -263,6 +280,25 @@ Supporting additions that make this useful in practice:
 | POST | `/monitors/{device_id}/resume/` | Resume monitoring |
 | PATCH | `/monitors/{device_id}/timeout/` | Update timeout duration |
 
+**POST `/monitors/`** — body:
+```json
+{
+    "id": "device-123",
+    "timeout": 60,
+    "alert_email": "admin@critmon.com"
+}
+```
+> The field is `id`, not `device_id` — it maps to the monitor's `device_id` internally.
+
+**POST `/monitors/{device_id}/heartbeat/`**, **`/pause/`**, **`/resume/`** — no body required.
+
+**PATCH `/monitors/{device_id}/timeout/`** — body:
+```json
+{
+    "timeout": 120
+}
+```
+
 ## Alerts
 | Method | Endpoint | Description |
 |---|---|---|
@@ -270,10 +306,46 @@ Supporting additions that make this useful in practice:
 | GET | `/alerts/{device_id}/` | List alerts for a specific device |
 | PATCH | `/alerts/resolve/{alert_id}/` | Mark an alert as resolved |
 
+**GET `/alerts/`** — response body:
+```json
+[
+    {
+        "id": 2,
+        "device_id": "device-123",
+        "alert_type": "DOWN",
+        "message": "Device device-123 is DOWN!",
+        "is_resolved": false,
+        "is_read": false,
+        "created_at": "2026-07-06T12:34:02.360395Z"
+    }
+]
+```
+
+**PATCH `/alerts/resolve/{alert_id}/`** — no request body required; response body:
+```json
+{
+    "message": "Alert resolved",
+    "id": 2,
+    "is_resolved": true
+}
+```
+
 ## Statistics
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/stats/` | Fleet statistics for the authenticated user (monitor counts by status, total/unresolved alerts) |
+
+**GET `/stats/`** — response body:
+```json
+{
+    "total_monitors": 1,
+    "active_monitors": 0,
+    "paused_monitors": 0,
+    "down_monitors": 1,
+    "total_alerts": 2,
+    "unresolved_alerts": 1
+}
+```
 
 ## Web Dashboard (session-authenticated, HTML)
 | Method | Endpoint | Description |
