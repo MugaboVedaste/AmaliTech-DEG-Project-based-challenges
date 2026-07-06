@@ -3,6 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.db import IntegrityError
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from monitors.models import Monitor
 from alerts.models import Alert
 from django.utils import timezone
@@ -202,5 +205,22 @@ def alert_history(request):
         'alerts': alerts,
         'unread_alert_count': 0,
     }
-    
+
     return render(request, 'dashboard/alert_history.html', context)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def stats(request):
+    """JSON fleet statistics for the authenticated user's monitors."""
+    monitors = Monitor.objects.filter(user=request.user)
+    alerts = Alert.objects.filter(monitor__user=request.user)
+
+    return Response({
+        'total_monitors': monitors.count(),
+        'active_monitors': monitors.filter(status='ACTIVE').count(),
+        'paused_monitors': monitors.filter(status='PAUSED').count(),
+        'down_monitors': monitors.filter(status='DOWN').count(),
+        'total_alerts': alerts.count(),
+        'unresolved_alerts': alerts.filter(is_resolved=False).count(),
+    })

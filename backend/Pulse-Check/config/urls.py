@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from users.views import web_login, web_logout
+from dashboard.views import stats
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,4 +27,5 @@ urlpatterns = [
     path('monitors/', include('monitors.urls')),
     path('alerts/', include('alerts.urls')),
     path('users/', include('users.urls')),
+    path('stats/', stats),
 ]

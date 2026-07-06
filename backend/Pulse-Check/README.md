@@ -1,4 +1,4 @@
-# Pulse-Check API (Watchdog Sentinel)
+# Pulse-Check API ("Watchdog" Sentinel)
 
 ## Overview
 Pulse-Check API is a backend monitoring system built with **Django** and **Django REST Framework** that implements a **Dead Man's Switch** mechanism. It continuously monitors remote devices by expecting periodic heartbeat requests. If a device fails to send a heartbeat before its configured timeout expires, the system automatically marks the device as **DOWN** and generates an alert.
@@ -30,7 +30,8 @@ Responsible for authentication and user management.
 Features:
 
 - Email-based authentication
-- JWT login
+- JWT login (for the API)
+- Session login (for the web Dashboard)
 - User registration
 - Device ownership
 
@@ -77,27 +78,21 @@ Each alert stores:
 - Alert type
 - Alert message
 - Resolution status
+- Read/unread status
 - Creation timestamp
 
-Alerts remain stored for historical tracking.
+Alerts remain stored for historical tracking, exposed via the JSON API (`/alerts/`) and through the Dashboard app (see [The Developer's Choice](#the-developers-choice-operations-dashboard)).
 
 ---
 
-## Dashboard / Statistics
-Provides a monitoring overview.
-
-Includes:
-
-- Total monitors
-- Active monitors
-- Paused monitors
-- Down monitors
-- Total alerts
-- Unresolved alerts
+## Dashboard
+The Developer's Choice feature — a server-rendered operations console for the monitoring data owned by the other three apps. See below for details.
 
 ---
 
-# System Architecture Diagram
+# Architecture Diagrams
+
+## System Architecture Diagram
 
 ```
                         Remote Device
@@ -126,45 +121,66 @@ Includes:
                     │                     │
                     └─────────────┬───────┘
                                   ▼
-                           Statistics API
-                                  │
-                                  ▼
-                              Dashboard
+                          Dashboard App
+                    (overview, monitors, alerts)
 ```
 
----
-
-# Database Design
+## Sequence Diagram: Heartbeat & Failure Flow
 
 ```
-User
+Device                 Monitors API              Timer Service            Alerts
+  │                         │                          │                    │
+  │  POST /monitors/        │                          │                    │
+  ├────────────────────────►│                          │                    │
+  │                         │  start_timer(monitor)     │                    │
+  │                         ├─────────────────────────►│                    │
+  │        201 Created      │                          │                    │
+  │◄────────────────────────┤                          │                    │
+  │                         │                          │                    │
+  │  POST .../heartbeat/    │                          │                    │
+  ├────────────────────────►│                          │                    │
+  │                         │  reset timer (cancel+restart)                 │
+  │                         ├─────────────────────────►│                    │
+  │        200 OK           │                          │                    │
+  │◄────────────────────────┤                          │                    │
+  │                         │                          │                    │
+  │      (device goes silent — no heartbeat sent)       │                    │
+  │                         │                          │  timeout elapses    │
+  │                         │                          ├───────────────────►│
+  │                         │                          │  status = DOWN     │
+  │                         │                          │  create Alert      │
+  │                         │                          │  console.log alert │
+  │                         │                          │                    │
+```
+
+## Database Design
+
+```
+User (1)
 │
 ├── id
 ├── email
 └── password
       │
-      │ 1
+      │ 1───* (owner)
       ▼
-Monitor
+Monitor (*)
 ├── device_id
 ├── timeout
 ├── alert_email
 ├── status
-├── last_heartbeat
-└── owner
+└── owner (FK → User)
       │
-      │ 1
+      │ 1───* (monitor)
       ▼
-Alert
+Alert (*)
 ├── alert_type
 ├── message
 ├── is_resolved
 └── created_at
 ```
 
----
-
-# Monitor Lifecycle
+## Monitor Lifecycle (State Flowchart)
 
 ```
 Register Monitor
@@ -190,7 +206,7 @@ Reset Timer   Timer Expires
         Log Alert to Console
                   │
                   ▼
-      Available Through Alerts API
+      Available Through Dashboard
 ```
 
 ---
@@ -212,31 +228,30 @@ Reset Timer   Timer Expires
 
 ---
 
-## Additional Features (Developer's Choice)
-To make the system more robust and user-friendly, the following features were added:
+## The Developer's Choice: Operations Dashboard
 
-- Email-based user authentication
-- Multi-user device ownership
-- Persistent alert history
-- Dynamic timeout updates
-- Statistics API
-- Dashboard for monitoring overview
-- Alert resolution support
+**Feature added:** a full server-rendered web Dashboard (`dashboard` app) — login page, fleet overview with live counts (total/active/paused/down monitors, unresolved alerts), a monitor list and detail view, forms to register/pause/resume a monitor and edit its timeout, and an alert history page.
 
-These additions improve usability, security, and maintainability while preserving the original challenge requirements.
+**Why:** the challenge's core deliverable is a JSON API, but the actual end user of a monitoring tool is a support engineer, not a Postman window. Without a UI, checking "is anything down right now?" means hand-crafting authenticated requests. The Dashboard turns Pulse-Check into something an on-call engineer could realistically use during an incident — sign in, see fleet health at a glance, drill into a device, resolve or acknowledge alerts — while reusing the exact same `monitors`/`alerts` services and the same timer lifecycle as the JSON API, so there is only one source of truth for monitor state.
+
+Supporting additions that make this useful in practice:
+
+- Persistent alert history (alerts are never deleted, only marked resolved/read)
+- Unread-alert badge count shown across the Dashboard
+- Dynamic timeout updates from the monitor detail page
 
 ---
 
 # REST API Endpoints
 
-> All endpoints require JWT Bearer Authentication except `/users/register/` and `/users/login/`.
+> Base URL: `http://localhost:8000/` (no `/api/` prefix — see [Setup Instructions](#setup-instructions)).
+> All endpoints below require JWT Bearer Authentication except `/users/register/` and `/users/login/`.
 
 ## Authentication
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/users/register/` | Register a new user |
 | POST | `/users/login/` | Authenticate user and obtain JWT tokens |
----
 
 ## Monitors
 | Method | Endpoint | Description |
@@ -247,48 +262,62 @@ These additions improve usability, security, and maintainability while preservin
 | POST | `/monitors/{device_id}/pause/` | Pause monitoring |
 | POST | `/monitors/{device_id}/resume/` | Resume monitoring |
 | PATCH | `/monitors/{device_id}/timeout/` | Update timeout duration |
----
 
 ## Alerts
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/alerts/` | List all alerts |
+| GET | `/alerts/` | List all alerts for the authenticated user's monitors |
 | GET | `/alerts/{device_id}/` | List alerts for a specific device |
 | PATCH | `/alerts/resolve/{alert_id}/` | Mark an alert as resolved |
----
 
 ## Statistics
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/stats/` | Retrieve monitoring statistics |
+| GET | `/stats/` | Fleet statistics for the authenticated user (monitor counts by status, total/unresolved alerts) |
+
+## Web Dashboard (session-authenticated, HTML)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET/POST | `/` | Login page |
+| GET | `/logout/` | Log out |
+| GET | `/dashboard/` | Fleet overview (counts + recent alerts) |
+| GET | `/dashboard/monitors/` | List monitors |
+| POST | `/dashboard/monitors/register/` | Register a monitor (form) |
+| GET | `/dashboard/monitors/{device_id}/` | Monitor detail + its alerts |
+| POST | `/dashboard/monitors/{device_id}/pause/` | Pause monitoring |
+| POST | `/dashboard/monitors/{device_id}/resume/` | Resume monitoring |
+| POST | `/dashboard/monitors/{device_id}/timeout/` | Update timeout |
+| GET | `/dashboard/alerts/` | Alert history |
+
 ---
 
 # API Usage with Postman
 
-This section provides a guide on how to test the Pulse-Check API endpoints using Postman.
+This section covers testing the JSON API endpoints using Postman.
 
 ## 1. Base URL
 Assume your API is running locally on port 8000.
-**Base URL:** `http://localhost:8000/api/`
+**Base URL:** `http://localhost:8000/`
 
 ## 2. Authentication Flow
 
 All endpoints (except `/users/register/` and `/users/login/`) require JWT Bearer Authentication.
 
 ### Step 1: Register a User (if you haven't already)
-- **Endpoint:** `POST http://localhost:8000/api/users/register/`
+- **Endpoint:** `POST http://localhost:8000/users/register/`
 - **Headers:** `Content-Type: application/json`
 - **Body (raw JSON):**
   ```json
   {
       "email": "test@example.com",
-      "password": "your_strong_password"
+      "password": "your_strong_password",
+      "company_name": "CritMon Servers Inc."
   }
   ```
-- **Expected Response:** `201 Created` with user details.
+- **Expected Response:** `201 Created` with a confirmation message.
 
 ### Step 2: Obtain JWT Tokens (Login)
-- **Endpoint:** `POST http://localhost:8000/api/users/login/`
+- **Endpoint:** `POST http://localhost:8000/users/login/`
 - **Headers:** `Content-Type: application/json`
 - **Body (raw JSON):**
   ```json
@@ -315,52 +344,76 @@ All endpoints (except `/users/register/` and `/users/login/`) require JWT Bearer
 ## 4. Example Requests
 
 ### Example 1: Register a Monitor
-- **Endpoint:** `POST http://localhost:8000/api/monitors/`
+- **Endpoint:** `POST http://localhost:8000/monitors/`
 - **Headers:**
     - `Content-Type: application/json`
     - `Authorization: Bearer <your_access_token>`
 - **Body (raw JSON):**
   ```json
   {
-      "device_id": "device-123",
+      "id": "device-123",
       "timeout": 60,
       "alert_email": "admin@critmon.com"
   }
   ```
+  > Note the field is `id`, not `device_id` — it maps to the monitor's `device_id` internally.
 - **Expected Response:** `201 Created` with monitor details.
 
 ### Example 2: Send a Heartbeat
-- **Endpoint:** `POST http://localhost:8000/api/monitors/device-123/heartbeat/`
+- **Endpoint:** `POST http://localhost:8000/monitors/device-123/heartbeat/`
 - **Headers:**
     - `Authorization: Bearer <your_access_token>`
 - **Body:** None (or empty JSON `{}`)
 - **Expected Response:** `200 OK` with a confirmation message.
 
 ### Example 3: List all Monitors
-- **Endpoint:** `GET http://localhost:8000/api/monitors/list/`
+- **Endpoint:** `GET http://localhost:8000/monitors/list/`
 - **Headers:**
     - `Authorization: Bearer <your_access_token>`
 - **Body:** None
 - **Expected Response:** `200 OK` with a list of monitors.
 
-### Example 4: List Alerts for a Specific Device
-- **Endpoint:** `GET http://localhost:8000/api/alerts/device-123/`
+### Example 4: Pause / Resume a Monitor
+- **Endpoint:** `POST http://localhost:8000/monitors/device-123/pause/` (or `/resume/`)
+- **Headers:**
+    - `Authorization: Bearer <your_access_token>`
+- **Body:** None
+- **Expected Response:** `200 OK` with the monitor's new status.
+
+### Example 5: List Alerts for a Specific Device
+- **Endpoint:** `GET http://localhost:8000/alerts/device-123/`
 - **Headers:**
     - `Authorization: Bearer <your_access_token>`
 - **Body:** None
 - **Expected Response:** `200 OK` with a list of alerts for `device-123`.
+
+### Example 6: Resolve an Alert
+- **Endpoint:** `PATCH http://localhost:8000/alerts/resolve/1/`
+- **Headers:**
+    - `Authorization: Bearer <your_access_token>`
+- **Body:** None
+- **Expected Response:** `200 OK` with `{"message": "Alert resolved", "id": 1, "is_resolved": true}`.
+
+### Example 7: Fleet Statistics
+- **Endpoint:** `GET http://localhost:8000/stats/`
+- **Headers:**
+    - `Authorization: Bearer <your_access_token>`
+- **Body:** None
+- **Expected Response:** `200 OK` with monitor/alert counts for the authenticated user.
 
 This guide should help you effectively test the API using Postman.
 
 ---
 
 # Setup Instructions
-Clone the repository:
+
+Fork and clone the repository:
 
 ```
-git clone https://github.com//Pulse-Check-API.git
-cd Pulse-Check-API
+git clone https://github.com/<your-username>/AmaliTech-DEG-Project-based-challenges.git
+cd AmaliTech-DEG-Project-based-challenges/backend/Pulse-Check
 ```
+
 Create and activate a virtual environment:
 
 **Windows**
@@ -385,7 +438,7 @@ Apply migrations:
 ```
 python manage.py migrate
 ```
-Create a superuser (optional):
+Create a superuser (optional, for `/admin/`):
 
 ```
 python manage.py createsuperuser
@@ -395,6 +448,8 @@ Run the development server:
 ```
 python manage.py runserver
 ```
+
+The web Dashboard is at `http://localhost:8000/`; the JSON API is described above.
 
 ---
 
@@ -419,7 +474,7 @@ Possible production enhancements include:
 - Celery background workers
 - PostgreSQL database
 - Docker deployment
-- Email notifications
+- Real email notifications (currently alerts are logged to console)
 - Webhook integrations
 - Device groups
 - Role-based permissions
@@ -430,4 +485,4 @@ Possible production enhancements include:
 ---
 
 # Conclusion
-Pulse-Check API fulfills all core requirements of the CritMon Servers Inc. challenge by implementing a stateful Dead Man's Switch monitoring system. In addition, it extends the solution with authentication, multi-user support, persistent alert management, dashboard statistics, dynamic timeout updates, and a clean modular architecture, resulting in a scalable and maintainable backend application.
+Pulse-Check API fulfills all core requirements of the CritMon Servers Inc. challenge by implementing a stateful Dead Man's Switch monitoring system: monitor registration, heartbeats, automatic failure detection and alerting, and pause/resume support. Its Developer's Choice addition, a full operations Dashboard, extends the solution beyond the JSON API into something a support engineer could actually use during an incident, while keeping monitor and alert state as the single source of truth shared by both the API and the UI.
